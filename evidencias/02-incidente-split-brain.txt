@@ -1,0 +1,221 @@
+T_PROMOCAO_DB=2026-11-16 17:59:46.564105+00
+===== 2026-11-16 14:59:46 -03 | epoch 1794851986 =====
++ docker compose exec -T primary psql -U postgres -c SELECT\ timeline_id\,\ checkpoint_lsn\ FROM\ pg_control_checkpoint\(\)\; 
+ timeline_id | checkpoint_lsn 
+-------------+----------------
+           1 | 0/3041448
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:46 -03 | epoch 1794851986 =====
++ docker compose exec -T replica psql -U postgres -c SELECT\ timeline_id\,\ checkpoint_lsn\ FROM\ pg_control_checkpoint\(\)\; 
+ timeline_id | checkpoint_lsn 
+-------------+----------------
+           1 | 0/3041398
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:46 -03 | epoch 1794851986 =====
++ docker compose exec -T replica psql -U postgres -c SELECT\ pg_promote\(\)\; 
+ pg_promote 
+------------
+ t
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:47 -03 | epoch 1794851987 =====
++ docker compose exec -T replica psql -U postgres -c SELECT\ pg_is_in_recovery\(\)\ AS\ novo_primario_em_recovery\,\ clock_timestamp\(\)\ AS\ confirmacao\; 
+ novo_primario_em_recovery |         confirmacao         
+---------------------------+-----------------------------
+ f                         | 2026-11-16 17:59:47.3941+00
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:47 -03 | epoch 1794851987 =====
++ docker compose exec -T primary psql -U postgres -c SELECT\ pg_is_in_recovery\(\)\ AS\ primario_antigo_em_recovery\,\ clock_timestamp\(\)\ AS\ confirmacao\; 
+ primario_antigo_em_recovery |          confirmacao          
+-----------------------------+-------------------------------
+ f                           | 2026-11-16 17:59:47.563542+00
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:47 -03 | epoch 1794851987 =====
++ docker compose exec -T primary psql -U postgres -c SELECT\ count\(\*\)\ AS\ replicas_conectadas\ FROM\ pg_stat_replication\; 
+ replicas_conectadas 
+---------------------
+                   0
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:47 -03 | epoch 1794851987 =====
++ docker compose exec -T replica psql -U postgres -c SELECT\ timeline_id\ FROM\ pg_control_checkpoint\(\)\; 
+ timeline_id 
+-------------
+           1
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:47 -03 | epoch 1794851987 =====
++ docker compose exec -T primary psql -U postgres -c SELECT\ timeline_id\ FROM\ pg_control_checkpoint\(\)\; 
+ timeline_id 
+-------------
+           1
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:48 -03 | epoch 1794851988 =====
++ docker compose exec -T primary psql -U postgres -v ON_ERROR_STOP=1 -c INSERT\ INTO\ eventos\ SELECT\ FROM\ generate_series\(1\,\ 10\)\; 
+INSERT 0 10
+exit_code=0
+
+===== 2026-11-16 14:59:48 -03 | epoch 1794851988 =====
++ docker compose exec -T replica psql -U postgres -v ON_ERROR_STOP=1 -c INSERT\ INTO\ eventos\ SELECT\ FROM\ generate_series\(1\,\ 7\)\; 
+INSERT 0 7
+exit_code=0
+
+===== 2026-11-16 14:59:48 -03 | epoch 1794851988 =====
++ docker compose exec -T primary psql -U postgres -c SELECT\ \'primario_antigo_5442\'\ AS\ lado\,\ max\(id\)\,\ count\(\*\)\ FROM\ eventos\; 
+         lado         | max | count 
+----------------------+-----+-------
+ primario_antigo_5442 |  12 |    10
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:48 -03 | epoch 1794851988 =====
++ docker compose exec -T replica psql -U postgres -c SELECT\ \'novo_primario_5443\'\ AS\ lado\,\ max\(id\)\,\ count\(\*\)\ FROM\ eventos\; 
+        lado        | max | count 
+--------------------+-----+-------
+ novo_primario_5443 |  40 |     7
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:48 -03 | epoch 1794851988 =====
++ docker compose exec -T primary psql -U postgres -c SELECT\ id\,\ ts\ FROM\ eventos\ ORDER\ BY\ id\; 
+ id |              ts               
+----+-------------------------------
+  3 | 2026-11-16 17:59:48.315781+00
+  4 | 2026-11-16 17:59:48.315781+00
+  5 | 2026-11-16 17:59:48.315781+00
+  6 | 2026-11-16 17:59:48.315781+00
+  7 | 2026-11-16 17:59:48.315781+00
+  8 | 2026-11-16 17:59:48.315781+00
+  9 | 2026-11-16 17:59:48.315781+00
+ 10 | 2026-11-16 17:59:48.315781+00
+ 11 | 2026-11-16 17:59:48.315781+00
+ 12 | 2026-11-16 17:59:48.315781+00
+(10 rows)
+
+exit_code=0
+
+===== 2026-11-16 14:59:49 -03 | epoch 1794851989 =====
++ docker compose exec -T replica psql -U postgres -c SELECT\ id\,\ ts\ FROM\ eventos\ ORDER\ BY\ id\; 
+ id |              ts               
+----+-------------------------------
+ 34 | 2026-11-16 17:59:48.492399+00
+ 35 | 2026-11-16 17:59:48.492399+00
+ 36 | 2026-11-16 17:59:48.492399+00
+ 37 | 2026-11-16 17:59:48.492399+00
+ 38 | 2026-11-16 17:59:48.492399+00
+ 39 | 2026-11-16 17:59:48.492399+00
+ 40 | 2026-11-16 17:59:48.492399+00
+(7 rows)
+
+exit_code=0
+
+TDB_FOR_FILTER=2026-11-16 17:59:46.564105+00
+===== 2026-11-16 14:59:49 -03 | epoch 1794851989 =====
++ docker compose exec -T primary psql -U postgres -c SELECT\ count\(\*\)\ AS\ divergentes_antigo\ FROM\ eventos\ WHERE\ ts\ \>\ \'2026-11-16\ 17:59:46.564105+00\'\; 
+ divergentes_antigo 
+--------------------
+                 10
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:49 -03 | epoch 1794851989 =====
++ docker compose exec -T replica psql -U postgres -c SELECT\ count\(\*\)\ AS\ divergentes_novo\ FROM\ eventos\ WHERE\ ts\ \>\ \'2026-11-16\ 17:59:46.564105+00\'\; 
+ divergentes_novo 
+------------------
+                7
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:49 -03 | epoch 1794851989 =====
++ docker compose exec -T primary psql -U postgres -c SELECT\ \*\ FROM\ eventos\ WHERE\ ts\ \>\ \'2026-11-16\ 17:59:46.564105+00\'\ ORDER\ BY\ id\ LIMIT\ 5\; 
+ id |              ts               
+----+-------------------------------
+  3 | 2026-11-16 17:59:48.315781+00
+  4 | 2026-11-16 17:59:48.315781+00
+  5 | 2026-11-16 17:59:48.315781+00
+  6 | 2026-11-16 17:59:48.315781+00
+  7 | 2026-11-16 17:59:48.315781+00
+(5 rows)
+
+exit_code=0
+
+===== 2026-11-16 14:59:49 -03 | epoch 1794851989 =====
++ docker compose exec -T replica psql -U postgres -c SELECT\ \*\ FROM\ eventos\ WHERE\ ts\ \>\ \'2026-11-16\ 17:59:46.564105+00\'\ ORDER\ BY\ id\ LIMIT\ 5\; 
+ id |              ts               
+----+-------------------------------
+ 34 | 2026-11-16 17:59:48.492399+00
+ 35 | 2026-11-16 17:59:48.492399+00
+ 36 | 2026-11-16 17:59:48.492399+00
+ 37 | 2026-11-16 17:59:48.492399+00
+ 38 | 2026-11-16 17:59:48.492399+00
+(5 rows)
+
+exit_code=0
+
+===== 2026-11-16 14:59:49 -03 | epoch 1794851989 =====
++ docker run --rm --network host -e PGPASSWORD=postgres postgres:16 psql -h 127.0.0.1 -p 5442 -U postgres -d postgres -c SELECT\ \'5442\'\ AS\ porta\,\ pg_is_in_recovery\(\)\ AS\ em_recovery\,\ count\(\*\)\ AS\ eventos\,\ max\(id\)\ AS\ max_id\ FROM\ eventos\; 
+ porta | em_recovery | eventos | max_id 
+-------+-------------+---------+--------
+ 5442  | f           |      10 |     12
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:50 -03 | epoch 1794851990 =====
++ docker run --rm --network host -e PGPASSWORD=postgres postgres:16 psql -h 127.0.0.1 -p 5443 -U postgres -d postgres -c SELECT\ \'5443\'\ AS\ porta\,\ pg_is_in_recovery\(\)\ AS\ em_recovery\,\ count\(\*\)\ AS\ eventos\,\ max\(id\)\ AS\ max_id\ FROM\ eventos\; 
+ porta | em_recovery | eventos | max_id 
+-------+-------------+---------+--------
+ 5443  | f           |       7 |     40
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 15:01:10 -03 | epoch 1794852070 =====
++ sequencia e timeline apos a divergencia
+--- primario antigo ---
+ last_value | log_cnt | is_called 
+------------+---------+-----------
+         12 |      21 | t
+(1 row)
+
+           wal            
+--------------------------
+ 000000010000000000000003
+(1 row)
+
+--- novo primario ---
+ last_value | log_cnt | is_called 
+------------+---------+-----------
+         40 |      26 | t
+(1 row)
+
+           wal            
+--------------------------
+ 000000020000000000000003
+(1 row)
+

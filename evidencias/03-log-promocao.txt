@@ -1,0 +1,6 @@
+replica-1  | 2026-11-16 17:57:04.112 UTC [9] LOG:  database system was shut down in recovery at 2026-10-31 18:43:42 UTC
+replica-1  | 2026-11-16 17:57:04.114 UTC [1] LOG:  database system is ready to accept read-only connections
+replica-1  | 2026-11-16 17:57:04.126 UTC [10] LOG:  started streaming WAL from primary at 0/3000000 on timeline 1
+replica-1  | 2026-11-16 17:59:47.086 UTC [9] LOG:  received promote request
+replica-1  | 2026-11-16 17:59:47.088 UTC [9] LOG:  selected new timeline ID: 2
+replica-1  | 2026-11-16 17:59:47.114 UTC [1] LOG:  database system is ready to accept connections

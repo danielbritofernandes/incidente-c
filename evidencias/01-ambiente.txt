@@ -1,0 +1,58 @@
+===== 2026-11-16 14:59:11 -03 | epoch 1794851951 =====
++ docker compose exec -T primary psql -U postgres -c SELECT\ pg_is_in_recovery\(\)\ AS\ primario_em_recovery\,\ inet_server_port\(\)\ AS\ porta\; 
+ primario_em_recovery | porta 
+----------------------+-------
+ f                    |      
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:11 -03 | epoch 1794851951 =====
++ docker compose exec -T replica psql -U postgres -c SELECT\ pg_is_in_recovery\(\)\ AS\ replica_em_recovery\,\ inet_server_port\(\)\ AS\ porta\; 
+ replica_em_recovery | porta 
+---------------------+-------
+ t                   |      
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:12 -03 | epoch 1794851952 =====
++ docker compose exec -T primary psql -U postgres -c SELECT\ application_name\,\ client_addr\,\ state\,\ sync_state\,\ replay_lag\ FROM\ pg_stat_replication\; 
+ application_name | client_addr |   state   | sync_state | replay_lag 
+------------------+-------------+-----------+------------+------------
+ walreceiver      | 172.21.0.3  | streaming | async      | 
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 14:59:12 -03 | epoch 1794851952 =====
++ docker compose exec -T primary psql -U postgres -v ON_ERROR_STOP=1 -c CREATE\ TABLE\ clientes\ \(id\ serial\ PRIMARY\ KEY\,\ nome\ text\,\ email\ text\)\; -c INSERT\ INTO\ clientes\ \(nome\,\ email\)\ SELECT\ \'cliente\ \'\ \|\|\ g\,\ \'c\'\ \|\|\ g\ \|\|\ \'@loja.com\'\ FROM\ generate_series\(1\,\ 1000\)\ g\; -c CREATE\ TABLE\ eventos\ \(id\ bigserial\ PRIMARY\ KEY\,\ ts\ timestamptz\ DEFAULT\ now\(\)\)\; -c SELECT\ count\(\*\)\ AS\ clientes_primario\ FROM\ clientes\; 
+CREATE TABLE
+INSERT 0 1000
+CREATE TABLE
+ clientes_primario 
+-------------------
+              1000
+(1 row)
+
+exit_code=0
+
+tentativa 1 replica_clientes=1000
+===== 2026-11-16 14:59:12 -03 | epoch 1794851952 =====
++ docker compose exec -T replica psql -U postgres -c SELECT\ pg_is_in_recovery\(\)\,\ count\(\*\)\ AS\ clientes\ FROM\ clientes\; 
+ pg_is_in_recovery | clientes 
+-------------------+----------
+ t                 |     1000
+(1 row)
+
+exit_code=0
+
+===== teste da sintaxe do PDF (com ROLLBACK) =====
+===== 2026-11-16 14:59:12 -03 | epoch 1794851952 =====
++ docker compose exec -T primary psql -U postgres -v ON_ERROR_STOP=1 -c BEGIN\;\ INSERT\ INTO\ eventos\ SELECT\ FROM\ generate_series\(1\,\ 2\)\;\ ROLLBACK\; 
+BEGIN
+INSERT 0 2
+ROLLBACK
+exit_code=0
+
+teste_pdf_exit=0
