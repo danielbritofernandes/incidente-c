@@ -153,3 +153,64 @@ date +%s                        # 1794852149
 ```
 
 Resultado: 5443 fora de recovery, 7 eventos, 1000 clientes, `INSERT` em `prova_escrita` confirmado. RTO = 1794852149 − 1794851986 = 163 s.
+
+## Bônus: reconstruir o primário antigo como réplica
+
+Adaptação do procedimento do Caminho B para o volume Docker `lab1_primary_data`. O critério de aceite é o mesmo: na porta 5442, `pg_is_in_recovery()` volta a ser `true`.
+
+### 15:03:25 — apagar o diretório de dados do primário antigo
+
+```bash
+docker compose ps
+docker run --rm --user root -v lab1_primary_data:/var/lib/postgresql/data postgres:16 \
+  bash -c 'rm -rf /var/lib/postgresql/data/* /var/lib/postgresql/data/.[!.]*; ls -la /var/lib/postgresql/data'
+```
+
+Resultado: diretório vazio (`WIPED`). O container do primário já estava parado.
+
+### 15:03:26 — basebackup a partir do primário novo
+
+```bash
+docker run --rm --network lab1_default --user postgres \
+  -v lab1_primary_data:/var/lib/postgresql/data -e PGPASSWORD=repl postgres:16 \
+  pg_basebackup -h replica -p 5432 -U replicator \
+  -D /var/lib/postgresql/data -R -X stream -C -S oldprimary_slot -P --checkpoint=fast
+```
+
+Resultado: `23500/23500 kB (100%)`. `standby.signal` criado. `primary_conninfo` efetivo aponta para `host=replica port=5432`, slot `oldprimary_slot`.
+
+### 15:03:27 — subir o nó antigo já como réplica
+
+```bash
+docker compose up -d --no-deps primary
+```
+
+### 15:03:28 — confirmar recovery e streaming
+
+```bash
+docker compose exec -T primary psql -U postgres \
+  -c "SELECT pg_is_in_recovery() AS antigo_agora_replica, count(*) AS eventos, max(id) AS max_id FROM eventos;"
+docker compose exec -T replica psql -U postgres \
+  -c "SELECT pid, application_name, client_addr, state, sync_state, sent_lsn, replay_lsn FROM pg_stat_replication;"
+```
+
+Resultado: `pg_is_in_recovery = t`, 7 eventos, max(id) 40. No primário novo, uma réplica em `streaming` / `async`. O log do container diz `entering standby mode` e `started streaming WAL from primary at 0/5000000 on timeline 2`.
+
+### 15:04:06 — provar que a escrita só anda para um lado
+
+```bash
+docker compose exec -T replica psql -U postgres \
+  -c "INSERT INTO prova_escrita (id) VALUES (2) RETURNING id, ts;"
+docker compose exec -T primary psql -U postgres \
+  -c "SELECT pg_is_in_recovery() AS em_recovery, id, ts FROM prova_escrita ORDER BY id;"
+docker compose exec -T primary psql -U postgres \
+  -c "INSERT INTO prova_escrita (id) VALUES (3);"
+docker run --rm --network host -e PGPASSWORD=postgres postgres:16 \
+  psql -h 127.0.0.1 -p 5442 -U postgres -d postgres \
+  -c "SELECT '5442' AS porta, pg_is_in_recovery(), (SELECT count(*) FROM eventos), (SELECT count(*) FROM clientes), (SELECT count(*) FROM prova_escrita);"
+docker run --rm --network host -e PGPASSWORD=postgres postgres:16 \
+  psql -h 127.0.0.1 -p 5443 -U postgres -d postgres \
+  -c "SELECT '5443' AS porta, pg_is_in_recovery(), (SELECT count(*) FROM eventos), (SELECT count(*) FROM clientes), (SELECT count(*) FROM prova_escrita);"
+```
+
+Resultado: o id 2 gravado na 5443 apareceu na 5442. O `INSERT` na 5442 falhou com `cannot execute INSERT in a read-only transaction`. As duas portas ficaram com 7 eventos, 1000 clientes e 2 provas. A 5442 está em recovery; a 5443 não.

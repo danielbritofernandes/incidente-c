@@ -1,0 +1,96 @@
+===== 2026-11-16 15:03:25 -03 | epoch 1794852205 =====
++ docker compose ps 
+NAME             IMAGE         COMMAND                  SERVICE   CREATED       STATUS         PORTS
+lab1-replica-1   postgres:16   "bash -c 'if [ ! -s …"   replica   2 weeks ago   Up 6 minutes   0.0.0.0:5443->5432/tcp, [::]:5443->5432/tcp
+exit_code=0
+
+===== 2026-11-16 15:03:25 -03 | epoch 1794852205 =====
++ docker run --rm --user root -v lab1_primary_data:/var/lib/postgresql/data postgres:16 bash -c rm\ -rf\ /var/lib/postgresql/data/\*\ /var/lib/postgresql/data/.\[\!.\]\*\;\ ls\ -la\ /var/lib/postgresql/data\;\ echo\ WIPED 
+total 8
+drwx------ 2 postgres postgres 4096 Nov 16 18:03 .
+drwxrwxrwt 1 postgres postgres 4096 Oct 28 01:31 ..
+WIPED
+exit_code=0
+
+===== 2026-11-16 15:03:26 -03 | epoch 1794852206 =====
++ docker run --rm --network lab1_default --user postgres -v lab1_primary_data:/var/lib/postgresql/data -e PGPASSWORD=repl postgres:16 pg_basebackup -h replica -p 5432 -U replicator -D /var/lib/postgresql/data -R -X stream -C -S oldprimary_slot -P --checkpoint=fast 
+waiting for checkpoint
+23500/23500 kB (100%), 0/1 tablespace
+23500/23500 kB (100%), 1/1 tablespace
+exit_code=0
+
+===== primary_conninfo (senha omitida) =====
+standby_signal=sim
+primary_conninfo = 'user=replicator password=*** channel_binding=prefer host=primary port=5432 sslmode=prefer sslnegotiation=postgres sslcompression=0 sslcertmode=allow sslsni=1 ssl_min_protocol_version=TLSv1.2 gssencmode=prefer krbsrvname=postgres gssdelegation=0 target_session_attrs=any load_balance_hosts=disable'
+primary_slot_name = 'replica1_slot'
+primary_conninfo = 'user=replicator password=*** channel_binding=prefer host=replica port=5432 sslmode=prefer sslnegotiation=postgres sslcompression=0 sslcertmode=allow sslsni=1 ssl_min_protocol_version=TLSv1.2 gssencmode=prefer krbsrvname=postgres gssdelegation=0 target_session_attrs=any load_balance_hosts=disable'
+primary_slot_name = 'oldprimary_slot'
+===== 2026-11-16 15:03:27 -03 | epoch 1794852207 =====
++ docker compose up -d --no-deps primary 
+ Container lab1-primary-1 Starting 
+ Container lab1-primary-1 Started 
+exit_code=0
+
+tentativa 1 recovery=t
+===== 2026-11-16 15:03:28 -03 | epoch 1794852208 =====
++ docker compose exec -T primary psql -U postgres -c SELECT\ pg_is_in_recovery\(\)\ AS\ antigo_agora_replica\,\ count\(\*\)\ AS\ eventos\,\ max\(id\)\ AS\ max_id\ FROM\ eventos\; 
+ antigo_agora_replica | eventos | max_id 
+----------------------+---------+--------
+ t                    |       7 |     40
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 15:03:28 -03 | epoch 1794852208 =====
++ docker compose exec -T replica psql -U postgres -c SELECT\ pid\,\ application_name\,\ client_addr\,\ state\,\ sync_state\,\ sent_lsn\,\ replay_lsn\ FROM\ pg_stat_replication\; 
+ pid | application_name | client_addr |   state   | sync_state | sent_lsn  | replay_lsn 
+-----+------------------+-------------+-----------+------------+-----------+------------
+ 168 | walreceiver      | 172.21.0.2  | streaming | async      | 0/5000000 | 0/5000000
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 15:03:28 -03 | epoch 1794852208 =====
++ docker compose logs primary --tail 40 
+primary-1  | 2026-10-31 18:43:42.566 UTC [62] LOG:  checkpoint starting: shutdown immediate
+primary-1  | 2026-10-31 18:43:42.577 UTC [62] LOG:  checkpoint complete: wrote 0 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.004 s, sync=0.001 s, total=0.016 s; sync files=0, longest=0.000 s, average=0.000 s; distance=0 kB, estimate=14980 kB; lsn=0/3041448, redo lsn=0/3041448
+primary-1  | 2026-10-31 18:43:42.584 UTC [1] LOG:  database system is shut down
+primary-1  | 
+primary-1  | PostgreSQL Database directory appears to contain a database; Skipping initialization
+primary-1  | 
+primary-1  | 2026-11-16 17:57:04.013 UTC [1] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+primary-1  | 2026-11-16 17:57:04.013 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+primary-1  | 2026-11-16 17:57:04.013 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+primary-1  | 2026-11-16 17:57:04.014 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+primary-1  | 2026-11-16 17:57:04.017 UTC [29] LOG:  database system was shut down at 2026-10-31 18:43:42 UTC
+primary-1  | 2026-11-16 17:57:04.024 UTC [1] LOG:  database system is ready to accept connections
+primary-1  | 2026-11-16 17:57:34.136 UTC [62] ERROR:  relation "clientes" does not exist at character 34
+primary-1  | 2026-11-16 17:57:34.136 UTC [62] STATEMENT:  SELECT count(*) AS clientes FROM clientes;
+primary-1  | 2026-11-16 17:57:34.136 UTC [62] ERROR:  relation "eventos" does not exist at character 52
+primary-1  | 2026-11-16 17:57:34.136 UTC [62] STATEMENT:  SELECT count(*) AS eventos, max(id) AS max_id FROM eventos;
+primary-1  | 2026-11-16 18:02:04.117 UTC [27] LOG:  checkpoint starting: time
+primary-1  | 2026-11-16 18:02:11.570 UTC [27] LOG:  checkpoint complete: wrote 77 buffers (0.5%); 0 WAL file(s) added, 0 removed, 0 recycled; write=7.426 s, sync=0.014 s, total=7.454 s; sync files=50, longest=0.010 s, average=0.001 s; distance=359 kB, estimate=359 kB; lsn=0/309B0A0, redo lsn=0/309B068
+primary-1  | 2026-11-16 18:02:28.346 UTC [1] LOG:  received fast shutdown request
+primary-1  | 2026-11-16 18:02:28.349 UTC [1] LOG:  aborting any active transactions
+primary-1  | 2026-11-16 18:02:28.351 UTC [1] LOG:  background worker "logical replication launcher" (PID 32) exited with exit code 1
+primary-1  | 2026-11-16 18:02:28.351 UTC [27] LOG:  shutting down
+primary-1  | 2026-11-16 18:02:28.353 UTC [27] LOG:  checkpoint starting: shutdown immediate
+primary-1  | 2026-11-16 18:02:28.357 UTC [27] LOG:  checkpoint complete: wrote 0 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.007 s; sync files=0, longest=0.000 s, average=0.000 s; distance=0 kB, estimate=323 kB; lsn=0/309B150, redo lsn=0/309B150
+primary-1  | 2026-11-16 18:02:28.364 UTC [1] LOG:  database system is shut down
+primary-1  | 
+primary-1  | PostgreSQL Database directory appears to contain a database; Skipping initialization
+primary-1  | 
+primary-1  | 2026-11-16 18:03:28.143 UTC [1] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+primary-1  | 2026-11-16 18:03:28.143 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+primary-1  | 2026-11-16 18:03:28.143 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+primary-1  | 2026-11-16 18:03:28.144 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+primary-1  | 2026-11-16 18:03:28.146 UTC [29] LOG:  database system was interrupted; last known up at 2026-11-16 18:03:26 UTC
+primary-1  | 2026-11-16 18:03:28.224 UTC [29] LOG:  entering standby mode
+primary-1  | 2026-11-16 18:03:28.224 UTC [29] LOG:  starting backup recovery with redo LSN 0/4000028, checkpoint LSN 0/4000060, on timeline ID 2
+primary-1  | 2026-11-16 18:03:28.226 UTC [29] LOG:  redo starts at 0/4000028
+primary-1  | 2026-11-16 18:03:28.226 UTC [29] LOG:  completed backup recovery with redo LSN 0/4000028 and end LSN 0/4000100
+primary-1  | 2026-11-16 18:03:28.226 UTC [29] LOG:  consistent recovery state reached at 0/4000100
+primary-1  | 2026-11-16 18:03:28.226 UTC [1] LOG:  database system is ready to accept read-only connections
+primary-1  | 2026-11-16 18:03:28.236 UTC [36] LOG:  started streaming WAL from primary at 0/5000000 on timeline 2
+exit_code=0
+

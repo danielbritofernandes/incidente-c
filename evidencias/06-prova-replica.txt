@@ -1,0 +1,101 @@
+===== 2026-11-16 15:04:06 -03 | epoch 1794852246 =====
++ docker compose exec -T primary psql -U postgres -c SELECT\ pg_is_in_recovery\(\)\;\ SHOW\ primary_slot_name\; -c SHOW\ primary_conninfo\; 
+ pg_is_in_recovery 
+-------------------
+ t
+(1 row)
+
+ primary_slot_name 
+-------------------
+ oldprimary_slot
+(1 row)
+
+                                                                                                                                             primary_conninfo                                                                                                                                              
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ user=replicator password=*** channel_binding=prefer host=replica port=5432 sslmode=prefer sslnegotiation=postgres sslcompression=0 sslcertmode=allow sslsni=1 ssl_min_protocol_version=TLSv1.2 gssencmode=prefer krbsrvname=postgres gssdelegation=0 target_session_attrs=any load_balance_hosts=disable
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 15:04:06 -03 | epoch 1794852246 =====
++ docker compose exec -T replica psql -U postgres -v ON_ERROR_STOP=1 -c INSERT\ INTO\ prova_escrita\ \(id\)\ VALUES\ \(2\)\ RETURNING\ id\,\ ts\; 
+ id |              ts               
+----+-------------------------------
+  2 | 2026-11-16 18:04:06.683409+00
+(1 row)
+
+INSERT 0 1
+exit_code=0
+
+===== 2026-11-16 15:04:07 -03 | epoch 1794852247 =====
++ docker compose exec -T primary psql -U postgres -c SELECT\ pg_is_in_recovery\(\)\ AS\ em_recovery\,\ id\,\ ts\ FROM\ prova_escrita\ ORDER\ BY\ id\; 
+ em_recovery | id |              ts               
+-------------+----+-------------------------------
+ t           |  1 | 2026-11-16 18:02:29.627991+00
+ t           |  2 | 2026-11-16 18:04:06.683409+00
+(2 rows)
+
+exit_code=0
+
+===== 2026-11-16 15:04:07 -03 | epoch 1794852247 =====
++ docker compose exec -T primary psql -U postgres -c SELECT\ id\,\ ts\ FROM\ eventos\ ORDER\ BY\ id\; 
+ id |              ts               
+----+-------------------------------
+ 34 | 2026-11-16 17:59:48.492399+00
+ 35 | 2026-11-16 17:59:48.492399+00
+ 36 | 2026-11-16 17:59:48.492399+00
+ 37 | 2026-11-16 17:59:48.492399+00
+ 38 | 2026-11-16 17:59:48.492399+00
+ 39 | 2026-11-16 17:59:48.492399+00
+ 40 | 2026-11-16 17:59:48.492399+00
+(7 rows)
+
+exit_code=0
+
+===== 2026-11-16 15:04:08 -03 | epoch 1794852248 =====
++ docker compose exec -T replica psql -U postgres -c SELECT\ id\,\ ts\ FROM\ eventos\ ORDER\ BY\ id\; 
+ id |              ts               
+----+-------------------------------
+ 34 | 2026-11-16 17:59:48.492399+00
+ 35 | 2026-11-16 17:59:48.492399+00
+ 36 | 2026-11-16 17:59:48.492399+00
+ 37 | 2026-11-16 17:59:48.492399+00
+ 38 | 2026-11-16 17:59:48.492399+00
+ 39 | 2026-11-16 17:59:48.492399+00
+ 40 | 2026-11-16 17:59:48.492399+00
+(7 rows)
+
+exit_code=0
+
+===== 2026-11-16 15:04:08 -03 | epoch 1794852248 =====
++ docker compose exec -T primary psql -U postgres -c INSERT\ INTO\ prova_escrita\ \(id\)\ VALUES\ \(3\)\; 
+ERROR:  cannot execute INSERT in a read-only transaction
+exit_code=1
+
+===== 2026-11-16 15:04:08 -03 | epoch 1794852248 =====
++ docker run --rm --network host -e PGPASSWORD=postgres postgres:16 psql -h 127.0.0.1 -p 5442 -U postgres -d postgres -c SELECT\ \'5442\'\ AS\ porta\,\ pg_is_in_recovery\(\)\ AS\ em_recovery\,\ \(SELECT\ count\(\*\)\ FROM\ eventos\)\ AS\ eventos\,\ \(SELECT\ count\(\*\)\ FROM\ clientes\)\ AS\ clientes\,\ \(SELECT\ count\(\*\)\ FROM\ prova_escrita\)\ AS\ provas\; 
+ porta | em_recovery | eventos | clientes | provas 
+-------+-------------+---------+----------+--------
+ 5442  | t           |       7 |     1000 |      2
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 15:04:08 -03 | epoch 1794852248 =====
++ docker run --rm --network host -e PGPASSWORD=postgres postgres:16 psql -h 127.0.0.1 -p 5443 -U postgres -d postgres -c SELECT\ \'5443\'\ AS\ porta\,\ pg_is_in_recovery\(\)\ AS\ em_recovery\,\ \(SELECT\ count\(\*\)\ FROM\ eventos\)\ AS\ eventos\,\ \(SELECT\ count\(\*\)\ FROM\ clientes\)\ AS\ clientes\,\ \(SELECT\ count\(\*\)\ FROM\ prova_escrita\)\ AS\ provas\; 
+ porta | em_recovery | eventos | clientes | provas 
+-------+-------------+---------+----------+--------
+ 5443  | f           |       7 |     1000 |      2
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 15:04:09 -03 | epoch 1794852249 =====
++ docker compose exec -T replica psql -U postgres -c SELECT\ application_name\,\ state\,\ sync_state\ FROM\ pg_stat_replication\; 
+ application_name |   state   | sync_state 
+------------------+-----------+------------
+ walreceiver      | streaming | async
+(1 row)
+
+exit_code=0
+
