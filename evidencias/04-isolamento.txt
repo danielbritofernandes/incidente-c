@@ -1,0 +1,43 @@
+===== 2026-11-16 15:02:28 -03 | epoch 1794852148 =====
++ docker compose stop primary 
+ Container lab1-primary-1 Stopping 
+ Container lab1-primary-1 Stopped 
+exit_code=0
+
+===== 2026-11-16 15:02:28 -03 | epoch 1794852148 =====
++ docker compose ps 
+NAME             IMAGE         COMMAND                  SERVICE   CREATED       STATUS         PORTS
+lab1-replica-1   postgres:16   "bash -c 'if [ ! -s …"   replica   2 weeks ago   Up 5 minutes   0.0.0.0:5443->5432/tcp, [::]:5443->5432/tcp
+exit_code=0
+
+===== 2026-11-16 15:02:28 -03 | epoch 1794852148 =====
++ docker run --rm --network host -e PGPASSWORD=postgres postgres:16 psql -h 127.0.0.1 -p 5442 -U postgres -d postgres -c SELECT\ 1\; 
+psql: error: connection to server at "127.0.0.1", port 5442 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+exit_code=2
+
+===== 2026-11-16 15:02:29 -03 | epoch 1794852149 =====
++ docker run --rm --network host -e PGPASSWORD=postgres postgres:16 psql -h 127.0.0.1 -p 5443 -U postgres -d postgres -c SELECT\ pg_is_in_recovery\(\)\ AS\ em_recovery\,\ count\(\*\)\ AS\ eventos\,\ max\(id\)\ AS\ max_id\ FROM\ eventos\; 
+ em_recovery | eventos | max_id 
+-------------+---------+--------
+ f           |       7 |     40
+(1 row)
+
+exit_code=0
+
+===== 2026-11-16 15:02:29 -03 | epoch 1794852149 =====
++ docker compose exec -T replica psql -U postgres -v ON_ERROR_STOP=1 -c CREATE\ TABLE\ prova_escrita\ \(id\ int\,\ ts\ timestamptz\ DEFAULT\ now\(\)\)\; -c INSERT\ INTO\ prova_escrita\ \(id\)\ VALUES\ \(1\)\ RETURNING\ id\,\ ts\; -c SELECT\ count\(\*\)\ AS\ clientes\ FROM\ clientes\; 
+CREATE TABLE
+ id |              ts               
+----+-------------------------------
+  1 | 2026-11-16 18:02:29.627991+00
+(1 row)
+
+INSERT 0 1
+ clientes 
+----------
+     1000
+(1 row)
+
+exit_code=0
+

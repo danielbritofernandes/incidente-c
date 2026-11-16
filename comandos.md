@@ -124,3 +124,32 @@ docker compose exec -T replica psql -U postgres -c "\copy (SELECT id, ts FROM ev
 ```
 
 Resultado: primário antigo na timeline 1 (`000000010000000000000003`), sequence em 12 com `log_cnt=21`. Novo primário na timeline 2 (`000000020000000000000003`), sequence em 40 com `log_cnt=26`. CSVs em `evidencias/`.
+
+## Correção: isolar o primário antigo
+
+### 15:02:28 — fencing
+
+```bash
+docker compose stop primary
+docker compose ps
+docker run --rm --network host -e PGPASSWORD=postgres postgres:16 \
+  psql -h 127.0.0.1 -p 5442 -U postgres -d postgres -c "SELECT 1;"
+```
+
+Resultado: container `lab1-primary-1` parado. A porta 5442 recusou a conexão.
+
+### 15:02:29 — o único primário aceita escrita (T1)
+
+```bash
+docker run --rm --network host -e PGPASSWORD=postgres postgres:16 \
+  psql -h 127.0.0.1 -p 5443 -U postgres -d postgres \
+  -c "SELECT pg_is_in_recovery() AS em_recovery, count(*) AS eventos, max(id) AS max_id FROM eventos;"
+docker compose exec -T replica psql -U postgres -v ON_ERROR_STOP=1 \
+  -c "CREATE TABLE prova_escrita (id int, ts timestamptz DEFAULT now());" \
+  -c "INSERT INTO prova_escrita (id) VALUES (1) RETURNING id, ts;" \
+  -c "SELECT count(*) AS clientes FROM clientes;"
+date '+%Y-%m-%d %H:%M:%S %Z'    # 2026-11-16 15:02:29 -03
+date +%s                        # 1794852149
+```
+
+Resultado: 5443 fora de recovery, 7 eventos, 1000 clientes, `INSERT` em `prova_escrita` confirmado. RTO = 1794852149 − 1794851986 = 163 s.

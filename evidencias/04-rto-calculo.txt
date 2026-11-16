@@ -1,0 +1,4 @@
+T0_epoch=1794851986
+T1_epoch=1794852149
+RTO_segundos=163
+RTO=2 min 43 s
